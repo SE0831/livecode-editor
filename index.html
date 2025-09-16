@@ -1,0 +1,1501 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiveCode Editor - リアルタイムHTML/CSS/JSエディター</title>
+    
+    <!-- CodeMirror CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #1e1e1e;
+            --bg-secondary: #252526;
+            --bg-tertiary: #2d2d30;
+            --text-primary: #cccccc;
+            --text-secondary: #858585;
+            --accent: #007acc;
+            --accent-hover: #1a8ad4;
+            --border: #3e3e42;
+            --success: #4ec9b0;
+            --warning: #ffd700;
+            --error: #f48771;
+            --html-color: #e34c26;
+            --css-color: #1572b6;
+            --js-color: #f7df1e;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 50px;
+        }
+
+        .logo {
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--accent);
+        }
+
+        .logo i {
+            font-size: 20px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 6px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-primary);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn:hover {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            border-color: var(--accent-hover);
+        }
+
+        /* Main Container */
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Editor Container */
+        .editor-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        /* Editor Tabs */
+        .editor-tabs {
+            background: var(--bg-tertiary);
+            display: flex;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .editor-tab {
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            border-right: 1px solid var(--border);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .editor-tab:hover {
+            background: var(--bg-secondary);
+        }
+
+        .editor-tab.active {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        .editor-tab.html-tab.active {
+            border-bottom: 2px solid var(--html-color);
+        }
+
+        .editor-tab.css-tab.active {
+            border-bottom: 2px solid var(--css-color);
+        }
+
+        .editor-tab.js-tab.active {
+            border-bottom: 2px solid var(--js-color);
+        }
+
+        .tab-icon {
+            font-size: 14px;
+        }
+
+        .html-tab .tab-icon {
+            color: var(--html-color);
+        }
+
+        .css-tab .tab-icon {
+            color: var(--css-color);
+        }
+
+        .js-tab .tab-icon {
+            color: var(--js-color);
+        }
+
+        /* Editor Panels */
+        .editor-panels {
+            flex: 1;
+            position: relative;
+            background: var(--bg-primary);
+        }
+
+        .editor-panel {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: none;
+        }
+
+        .editor-panel.active {
+            display: block;
+        }
+
+        .CodeMirror {
+            height: 100%;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+        }
+
+        /* Resizer */
+        .resizer {
+            width: 5px;
+            background: var(--border);
+            cursor: col-resize;
+            transition: background 0.2s;
+        }
+
+        .resizer:hover {
+            background: var(--accent);
+        }
+
+        /* Preview Container */
+        .preview-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            background: white;
+        }
+
+        .preview-header {
+            background: var(--bg-tertiary);
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .preview-title {
+            font-size: 13px;
+            font-weight: 500;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .preview-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .preview-btn {
+            padding: 4px 8px;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 3px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 12px;
+        }
+
+        .preview-btn:hover {
+            background: var(--bg-secondary);
+            border-color: var(--border);
+            color: var(--text-primary);
+        }
+
+        #preview {
+            flex: 1;
+            width: 100%;
+            border: none;
+            background: white;
+        }
+
+        /* Console */
+        .console-container {
+            height: 150px;
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border);
+            display: none;
+            flex-direction: column;
+        }
+
+        .console-container.show {
+            display: flex;
+        }
+
+        .console-header {
+            background: var(--bg-tertiary);
+            padding: 8px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .console-title {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .console-output {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+        }
+
+        .console-log {
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .console-log.error {
+            color: var(--error);
+        }
+
+        .console-log.warn {
+            color: var(--warning);
+        }
+
+        /* Status Bar */
+        .status-bar {
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            padding: 5px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: var(--text-secondary);
+            height: 25px;
+        }
+
+        .status-left {
+            display: flex;
+            gap: 20px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+        }
+
+        /* Layout Options */
+        .layout-vertical .main-container {
+            flex-direction: column;
+        }
+
+        .layout-vertical .resizer {
+            height: 5px;
+            width: 100%;
+            cursor: row-resize;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+            }
+
+            .resizer {
+                height: 5px;
+                width: 100%;
+                cursor: row-resize;
+            }
+        }
+
+        /* Loading */
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--accent);
+            font-size: 24px;
+        }
+
+        /* Templates Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 30px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .template-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .template-card {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .template-card:hover {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .template-name {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+
+        .template-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .close-modal {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading -->
+    <div class="loading" id="loading">
+        <i class="fas fa-spinner fa-spin"></i>
+    </div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">
+            <i class="fas fa-code"></i>
+            LiveCode Editor
+        </div>
+        <div class="header-actions">
+            <button class="btn" onclick="runCode()">
+                <i class="fas fa-play"></i>
+                実行
+            </button>
+            <button class="btn" onclick="clearAll()">
+                <i class="fas fa-eraser"></i>
+                クリア
+            </button>
+            <button class="btn" onclick="showTemplates()">
+                <i class="fas fa-folder-open"></i>
+                テンプレート
+            </button>
+            <button class="btn" onclick="downloadHTML()">
+                <i class="fas fa-download"></i>
+                ダウンロード
+            </button>
+            <button class="btn" onclick="toggleLayout()">
+                <i class="fas fa-columns"></i>
+                レイアウト
+            </button>
+            <button class="btn" onclick="toggleConsole()">
+                <i class="fas fa-terminal"></i>
+                コンソール
+            </button>
+            <button class="btn" onclick="toggleFullscreen()">
+                <i class="fas fa-expand"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container" id="mainContainer">
+        <!-- Editor Container -->
+        <div class="editor-container">
+            <!-- Editor Tabs -->
+            <div class="editor-tabs">
+                <button class="editor-tab html-tab active" onclick="switchTab('html')">
+                    <i class="fab fa-html5 tab-icon"></i>
+                    HTML
+                </button>
+                <button class="editor-tab css-tab" onclick="switchTab('css')">
+                    <i class="fab fa-css3-alt tab-icon"></i>
+                    CSS
+                </button>
+                <button class="editor-tab js-tab" onclick="switchTab('js')">
+                    <i class="fab fa-js-square tab-icon"></i>
+                    JavaScript
+                </button>
+            </div>
+
+            <!-- Editor Panels -->
+            <div class="editor-panels">
+                <div class="editor-panel active" id="htmlPanel">
+                    <textarea id="htmlEditor"></textarea>
+                </div>
+                <div class="editor-panel" id="cssPanel">
+                    <textarea id="cssEditor"></textarea>
+                </div>
+                <div class="editor-panel" id="jsPanel">
+                    <textarea id="jsEditor"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resizer -->
+        <div class="resizer" id="resizer"></div>
+
+        <!-- Preview Container -->
+        <div class="preview-container">
+            <div class="preview-header">
+                <div class="preview-title">
+                    <i class="fas fa-eye"></i>
+                    プレビュー
+                </div>
+                <div class="preview-actions">
+                    <button class="preview-btn" onclick="refreshPreview()">
+                        <i class="fas fa-sync"></i>
+                    </button>
+                    <button class="preview-btn" onclick="openInNewTab()">
+                        <i class="fas fa-external-link-alt"></i>
+                    </button>
+                </div>
+            </div>
+            <iframe id="preview"></iframe>
+        </div>
+    </div>
+
+    <!-- Console -->
+    <div class="console-container" id="consoleContainer">
+        <div class="console-header">
+            <div class="console-title">コンソール</div>
+            <button class="preview-btn" onclick="clearConsole()">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+        <div class="console-output" id="consoleOutput"></div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <div class="status-left">
+            <div class="status-item">
+                <div class="status-indicator"></div>
+                <span>準備完了</span>
+            </div>
+            <div class="status-item">
+                <i class="fas fa-keyboard"></i>
+                <span id="cursorPosition">1:1</span>
+            </div>
+        </div>
+        <div class="status-right">
+            <div class="status-item">
+                <span>自動実行: ON</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Templates Modal -->
+    <div class="modal" id="templatesModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">テンプレートを選択</h2>
+            </div>
+            <div class="template-grid">
+                <div class="template-card" onclick="loadTemplate('basic')">
+                    <div class="template-name">基本HTML</div>
+                    <div class="template-desc">シンプルなHTMLテンプレート</div>
+                </div>
+                <div class="template-card" onclick="loadTemplate('bootstrap')">
+                    <div class="template-name">Bootstrap</div>
+                    <div class="template-desc">Bootstrap 5 スターター</div>
+                </div>
+                <div class="template-card" onclick="loadTemplate('canvas')">
+                    <div class="template-name">Canvas</div>
+                    <div class="template-desc">Canvas アニメーション</div>
+                </div>
+                <div class="template-card" onclick="loadTemplate('form')">
+                    <div class="template-name">フォーム</div>
+                    <div class="template-desc">お問い合わせフォーム</div>
+                </div>
+                <div class="template-card" onclick="loadTemplate('grid')">
+                    <div class="template-name">CSS Grid</div>
+                    <div class="template-desc">グリッドレイアウト</div>
+                </div>
+                <div class="template-card" onclick="loadTemplate('animation')">
+                    <div class="template-name">アニメーション</div>
+                    <div class="template-desc">CSS アニメーション</div>
+                </div>
+            </div>
+            <button class="btn close-modal" onclick="closeTemplates()">閉じる</button>
+        </div>
+    </div>
+
+    <!-- CodeMirror JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/xml/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/css/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closetag.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldgutter.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/brace-fold.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/xml-fold.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/comment-fold.min.js"></script>
+
+    <script>
+        // Initialize CodeMirror editors
+        let htmlEditor, cssEditor, jsEditor;
+        let autoRun = true;
+        let updateTimeout;
+
+        // Templates
+        const templates = {
+            basic: {
+                html: `<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Page</title>
+</head>
+<body>
+    <h1>Hello, World!</h1>
+    <p>ここにコンテンツを追加してください。</p>
+</body>
+</html>`,
+                css: `body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    min-height: 100vh;
+}
+
+h1 {
+    font-size: 3em;
+    margin-bottom: 0.5em;
+}
+
+p {
+    font-size: 1.2em;
+    line-height: 1.6;
+}`,
+                js: `console.log('Hello, World!');
+
+// ページが読み込まれたら実行
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('ページが読み込まれました！');
+});`
+            },
+            bootstrap: {
+                html: `<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bootstrap Example</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">My Site</a>
+        </div>
+    </nav>
+    
+    <div class="container mt-5">
+        <div class="row">
+            <div class="col-md-12">
+                <h1 class="display-4">Bootstrap 5</h1>
+                <p class="lead">レスポンシブデザインを簡単に実装</p>
+                <button class="btn btn-primary">Get Started</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>`,
+                css: `/* カスタムスタイル */
+.container {
+    padding-top: 50px;
+}`,
+                js: `// Bootstrap JavaScript`
+            },
+            canvas: {
+                html: `<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas Animation</title>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+</body>
+</html>`,
+                css: `body {
+    margin: 0;
+    overflow: hidden;
+    background: #000;
+}
+
+canvas {
+    display: block;
+}`,
+                js: `const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+const particles = [];
+const particleCount = 100;
+
+class Particle {
+    constructor() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.vx = Math.random() * 2 - 1;
+        this.vy = Math.random() * 2 - 1;
+        this.radius = Math.random() * 3 + 1;
+    }
+    
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        
+        if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+        if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+    }
+    
+    draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(100, 200, 255, 0.8)';
+        ctx.fill();
+    }
+}
+
+for (let i = 0; i < particleCount; i++) {
+    particles.push(new Particle());
+}
+
+function animate() {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    particles.forEach(particle => {
+        particle.update();
+        particle.draw();
+    });
+    
+    requestAnimationFrame(animate);
+}
+
+animate();`
+            },
+            form: {
+                html: `<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Form</title>
+</head>
+<body>
+    <div class="container">
+        <form id="contactForm">
+            <h2>お問い合わせ</h2>
+            
+            <div class="form-group">
+                <label for="name">お名前</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="email">メールアドレス</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="message">メッセージ</label>
+                <textarea id="message" name="message" rows="5" required></textarea>
+            </div>
+            
+            <button type="submit">送信</button>
+        </form>
+    </div>
+</body>
+</html>`,
+                css: `* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.container {
+    width: 100%;
+    max-width: 500px;
+    padding: 20px;
+}
+
+form {
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+h2 {
+    margin-bottom: 30px;
+    color: #333;
+    text-align: center;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    color: #555;
+    font-weight: 500;
+}
+
+input, textarea {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #e0e0e0;
+    border-radius: 5px;
+    font-size: 16px;
+    transition: border-color 0.3s;
+}
+
+input:focus, textarea:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+button:hover {
+    transform: translateY(-2px);
+}`,
+                js: `document.getElementById('contactForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = {
+        name: document.getElementById('name').value,
+        email: document.getElementById('email').value,
+        message: document.getElementById('message').value
+    };
+    
+    console.log('フォームデータ:', formData);
+    alert('送信されました！（デモ）');
+    
+    // フォームをリセット
+    this.reset();
+});`
+            },
+            grid: {
+                html: `<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSS Grid Layout</title>
+</head>
+<body>
+    <div class="grid-container">
+        <header class="header">Header</header>
+        <nav class="sidebar">Sidebar</nav>
+        <main class="content">
+            <div class="card">Card 1</div>
+            <div class="card">Card 2</div>
+            <div class="card">Card 3</div>
+            <div class="card">Card 4</div>
+        </main>
+        <footer class="footer">Footer</footer>
+    </div>
+</body>
+</html>`,
+                css: `* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: #f0f0f0;
+}
+
+.grid-container {
+    display: grid;
+    grid-template-areas:
+        'header header'
+        'sidebar content'
+        'footer footer';
+    grid-template-columns: 250px 1fr;
+    grid-template-rows: 80px 1fr 60px;
+    min-height: 100vh;
+    gap: 10px;
+    padding: 10px;
+}
+
+.header {
+    grid-area: header;
+    background: #3498db;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    border-radius: 5px;
+}
+
+.sidebar {
+    grid-area: sidebar;
+    background: #2c3e50;
+    color: white;
+    padding: 20px;
+    border-radius: 5px;
+}
+
+.content {
+    grid-area: content;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    padding: 20px;
+    background: white;
+    border-radius: 5px;
+}
+
+.card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 30px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    transition: transform 0.3s;
+}
+
+.card:hover {
+    transform: scale(1.05);
+}
+
+.footer {
+    grid-area: footer;
+    background: #34495e;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+}
+
+@media (max-width: 768px) {
+    .grid-container {
+        grid-template-areas:
+            'header'
+            'content'
+            'sidebar'
+            'footer';
+        grid-template-columns: 1fr;
+    }
+}`,
+                js: `console.log('CSS Grid Layout loaded!');`
+            },
+            animation: {
+                html: `<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSS Animations</title>
+</head>
+<body>
+    <div class="container">
+        <div class="box bounce">Bounce</div>
+        <div class="box rotate">Rotate</div>
+        <div class="box slide">Slide</div>
+        <div class="box pulse">Pulse</div>
+    </div>
+</body>
+</html>`,
+                css: `body {
+    margin: 0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.container {
+    display: grid;
+    grid-template-columns: repeat(2, 150px);
+    gap: 30px;
+}
+
+.box {
+    width: 150px;
+    height: 150px;
+    background: white;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: #667eea;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.bounce {
+    animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-30px);
+    }
+}
+
+.rotate {
+    animation: rotate 2s linear infinite;
+}
+
+@keyframes rotate {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.slide {
+    animation: slide 2s ease-in-out infinite;
+}
+
+@keyframes slide {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    50% {
+        transform: translateX(30px);
+    }
+}
+
+.pulse {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}`,
+                js: `console.log('CSS Animations loaded!');
+
+document.querySelectorAll('.box').forEach(box => {
+    box.addEventListener('click', function() {
+        console.log(\`Clicked: \${this.textContent}\`);
+    });
+});`
+            }
+        };
+
+        // Initialize editors
+        function initEditors() {
+            const editorOptions = {
+                theme: 'monokai',
+                lineNumbers: true,
+                autoCloseBrackets: true,
+                autoCloseTags: true,
+                foldGutter: true,
+                gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+                extraKeys: {
+                    "Ctrl-Space": "autocomplete"
+                }
+            };
+
+            htmlEditor = CodeMirror.fromTextArea(document.getElementById('htmlEditor'), {
+                ...editorOptions,
+                mode: 'xml',
+                htmlMode: true
+            });
+
+            cssEditor = CodeMirror.fromTextArea(document.getElementById('cssEditor'), {
+                ...editorOptions,
+                mode: 'css'
+            });
+
+            jsEditor = CodeMirror.fromTextArea(document.getElementById('jsEditor'), {
+                ...editorOptions,
+                mode: 'javascript'
+            });
+
+            // Set initial content
+            htmlEditor.setValue(`<h1>Welcome to LiveCode Editor!</h1>
+<p>HTML、CSS、JavaScriptをリアルタイムで編集できます。</p>
+<button onclick="sayHello()">クリック！</button>`);
+
+            cssEditor.setValue(`body {
+    font-family: 'Segoe UI', sans-serif;
+    padding: 40px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    min-height: 100vh;
+}
+
+h1 {
+    font-size: 2.5em;
+    margin-bottom: 20px;
+}
+
+button {
+    padding: 10px 20px;
+    font-size: 16px;
+    background: white;
+    color: #667eea;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+button:hover {
+    transform: scale(1.05);
+}`);
+
+            jsEditor.setValue(`function sayHello() {
+    alert('こんにちは！LiveCode Editorへようこそ！');
+    console.log('Button clicked!');
+}`);
+
+            // Add change listeners
+            htmlEditor.on('change', handleEditorChange);
+            cssEditor.on('change', handleEditorChange);
+            jsEditor.on('change', handleEditorChange);
+
+            // Hide loading
+            setTimeout(() => {
+                document.getElementById('loading').style.display = 'none';
+                runCode();
+            }, 500);
+        }
+
+        // Handle editor changes
+        function handleEditorChange() {
+            if (autoRun) {
+                clearTimeout(updateTimeout);
+                updateTimeout = setTimeout(runCode, 500);
+            }
+        }
+
+        // Run code
+        function runCode() {
+            const html = htmlEditor.getValue();
+            const css = cssEditor.getValue();
+            const js = jsEditor.getValue();
+
+            const preview = document.getElementById('preview');
+            const previewContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <style>${css}</style>
+                </head>
+                <body>
+                    ${html}
+                    <script>
+                        // Capture console output
+                        const originalLog = console.log;
+                        const originalError = console.error;
+                        const originalWarn = console.warn;
+                        
+                        console.log = function(...args) {
+                            parent.postMessage({
+                                type: 'console',
+                                method: 'log',
+                                data: args.map(arg => String(arg)).join(' ')
+                            }, '*');
+                            originalLog.apply(console, args);
+                        };
+                        
+                        console.error = function(...args) {
+                            parent.postMessage({
+                                type: 'console',
+                                method: 'error',
+                                data: args.map(arg => String(arg)).join(' ')
+                            }, '*');
+                            originalError.apply(console, args);
+                        };
+                        
+                        console.warn = function(...args) {
+                            parent.postMessage({
+                                type: 'console',
+                                method: 'warn',
+                                data: args.map(arg => String(arg)).join(' ')
+                            }, '*');
+                            originalWarn.apply(console, args);
+                        };
+                        
+                        try {
+                            ${js}
+                        } catch(err) {
+                            console.error('Error: ' + err.message);
+                        }
+                    </script>
+                </body>
+                </html>
+            `;
+
+            preview.srcdoc = previewContent;
+        }
+
+        // Switch tabs
+        function switchTab(tab) {
+            // Update tab buttons
+            document.querySelectorAll('.editor-tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`.${tab}-tab`).classList.add('active');
+
+            // Update panels
+            document.querySelectorAll('.editor-panel').forEach(p => p.classList.remove('active'));
+            document.getElementById(`${tab}Panel`).classList.add('active');
+
+            // Refresh editor
+            if (tab === 'html') htmlEditor.refresh();
+            else if (tab === 'css') cssEditor.refresh();
+            else if (tab === 'js') jsEditor.refresh();
+        }
+
+        // Clear all
+        function clearAll() {
+            if (confirm('すべてのコードをクリアしますか？')) {
+                htmlEditor.setValue('');
+                cssEditor.setValue('');
+                jsEditor.setValue('');
+                clearConsole();
+            }
+        }
+
+        // Download HTML
+        function downloadHTML() {
+            const html = htmlEditor.getValue();
+            const css = cssEditor.getValue();
+            const js = jsEditor.getValue();
+
+            const fullHTML = `<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiveCode Export</title>
+    <style>
+${css}
+    </style>
+</head>
+<body>
+${html}
+    <script>
+${js}
+    </script>
+</body>
+</html>`;
+
+            const blob = new Blob([fullHTML], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'index.html';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Toggle layout
+        function toggleLayout() {
+            document.body.classList.toggle('layout-vertical');
+        }
+
+        // Toggle console
+        function toggleConsole() {
+            document.getElementById('consoleContainer').classList.toggle('show');
+        }
+
+        // Clear console
+        function clearConsole() {
+            document.getElementById('consoleOutput').innerHTML = '';
+        }
+
+        // Toggle fullscreen
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // Refresh preview
+        function refreshPreview() {
+            runCode();
+        }
+
+        // Open in new tab
+        function openInNewTab() {
+            const html = htmlEditor.getValue();
+            const css = cssEditor.getValue();
+            const js = jsEditor.getValue();
+
+            const fullHTML = `<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiveCode Preview</title>
+    <style>${css}</style>
+</head>
+<body>
+${html}
+    <script>${js}</script>
+</body>
+</html>`;
+
+            const blob = new Blob([fullHTML], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+        }
+
+        // Show templates
+        function showTemplates() {
+            document.getElementById('templatesModal').classList.add('show');
+        }
+
+        // Close templates
+        function closeTemplates() {
+            document.getElementById('templatesModal').classList.remove('show');
+        }
+
+        // Load template
+        function loadTemplate(name) {
+            const template = templates[name];
+            if (template) {
+                htmlEditor.setValue(template.html);
+                cssEditor.setValue(template.css);
+                jsEditor.setValue(template.js);
+                closeTemplates();
+                runCode();
+            }
+        }
+
+        // Resizer functionality
+        function initResizer() {
+            const resizer = document.getElementById('resizer');
+            const container = document.getElementById('mainContainer');
+            const editorContainer = document.querySelector('.editor-container');
+            let isResizing = false;
+
+            resizer.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                document.body.style.cursor = 'col-resize';
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isResizing) return;
+
+                const containerRect = container.getBoundingClientRect();
+                const percentage = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+                
+                if (percentage > 20 && percentage < 80) {
+                    editorContainer.style.flex = `0 0 ${percentage}%`;
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                isResizing = false;
+                document.body.style.cursor = 'default';
+            });
+        }
+
+        // Listen for console messages from iframe
+        window.addEventListener('message', (e) => {
+            if (e.data.type === 'console') {
+                const output = document.getElementById('consoleOutput');
+                const log = document.createElement('div');
+                log.className = `console-log ${e.data.method}`;
+                log.textContent = e.data.data;
+                output.appendChild(log);
+                output.scrollTop = output.scrollHeight;
+            }
+        });
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', () => {
+            initEditors();
+            initResizer();
+        });
+
+        // Save to localStorage
+        window.addEventListener('beforeunload', () => {
+            localStorage.setItem('liveCodeHTML', htmlEditor.getValue());
+            localStorage.setItem('liveCodeCSS', cssEditor.getValue());
+            localStorage.setItem('liveCodeJS', jsEditor.getValue());
+        });
+
+        // Load from localStorage
+        window.addEventListener('load', () => {
+            const savedHTML = localStorage.getItem('liveCodeHTML');
+            const savedCSS = localStorage.getItem('liveCodeCSS');
+            const savedJS = localStorage.getItem('liveCodeJS');
+
+            if (savedHTML || savedCSS || savedJS) {
+                setTimeout(() => {
+                    if (savedHTML) htmlEditor.setValue(savedHTML);
+                    if (savedCSS) cssEditor.setValue(savedCSS);
+                    if (savedJS) jsEditor.setValue(savedJS);
+                    runCode();
+                }, 1000);
+            }
+        });
+    </script>
+</body>
+</html>
