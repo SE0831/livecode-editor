@@ -8,6 +8,7 @@
     <!-- CodeMirror CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldgutter.css">
     
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -76,6 +77,7 @@
         .header-actions {
             display: flex;
             gap: 10px;
+            flex-wrap: wrap;
         }
 
         .btn {
@@ -90,6 +92,7 @@
             display: flex;
             align-items: center;
             gap: 6px;
+            white-space: nowrap;
         }
 
         .btn:hover {
@@ -379,6 +382,10 @@
                 width: 100%;
                 cursor: row-resize;
             }
+
+            .header-actions {
+                overflow-x: auto;
+            }
         }
 
         /* Loading */
@@ -389,6 +396,7 @@
             transform: translate(-50%, -50%);
             color: var(--accent);
             font-size: 24px;
+            z-index: 9999;
         }
 
         /* Templates Modal */
@@ -717,7 +725,7 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
     
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"><\/script>
 </body>
 </html>`,
                 css: `/* カスタムスタイル */
@@ -1136,7 +1144,7 @@ body {
 
 document.querySelectorAll('.box').forEach(box => {
     box.addEventListener('click', function() {
-        console.log(\`Clicked: \${this.textContent}\`);
+        console.log('Clicked: ' + this.textContent);
     });
 });`
             }
@@ -1284,7 +1292,7 @@ button:hover {
                         } catch(err) {
                             console.error('Error: ' + err.message);
                         }
-                    </script>
+                    <\/script>
                 </body>
                 </html>
             `;
@@ -1296,11 +1304,11 @@ button:hover {
         function switchTab(tab) {
             // Update tab buttons
             document.querySelectorAll('.editor-tab').forEach(t => t.classList.remove('active'));
-            document.querySelector(`.${tab}-tab`).classList.add('active');
+            document.querySelector('.' + tab + '-tab').classList.add('active');
 
             // Update panels
             document.querySelectorAll('.editor-panel').forEach(p => p.classList.remove('active'));
-            document.getElementById(`${tab}Panel`).classList.add('active');
+            document.getElementById(tab + 'Panel').classList.add('active');
 
             // Refresh editor
             if (tab === 'html') htmlEditor.refresh();
@@ -1338,7 +1346,7 @@ ${css}
 ${html}
     <script>
 ${js}
-    </script>
+    <\/script>
 </body>
 </html>`;
 
@@ -1396,7 +1404,7 @@ ${js}
 </head>
 <body>
 ${html}
-    <script>${js}</script>
+    <script>${js}<\/script>
 </body>
 </html>`;
 
@@ -1446,7 +1454,7 @@ ${html}
                 const percentage = ((e.clientX - containerRect.left) / containerRect.width) * 100;
                 
                 if (percentage > 20 && percentage < 80) {
-                    editorContainer.style.flex = `0 0 ${percentage}%`;
+                    editorContainer.style.flex = '0 0 ' + percentage + '%';
                 }
             });
 
@@ -1461,7 +1469,7 @@ ${html}
             if (e.data.type === 'console') {
                 const output = document.getElementById('consoleOutput');
                 const log = document.createElement('div');
-                log.className = `console-log ${e.data.method}`;
+                log.className = 'console-log ' + e.data.method;
                 log.textContent = e.data.data;
                 output.appendChild(log);
                 output.scrollTop = output.scrollHeight;
@@ -1476,25 +1484,27 @@ ${html}
 
         // Save to localStorage
         window.addEventListener('beforeunload', () => {
-            localStorage.setItem('liveCodeHTML', htmlEditor.getValue());
-            localStorage.setItem('liveCodeCSS', cssEditor.getValue());
-            localStorage.setItem('liveCodeJS', jsEditor.getValue());
+            if (htmlEditor && cssEditor && jsEditor) {
+                localStorage.setItem('liveCodeHTML', htmlEditor.getValue());
+                localStorage.setItem('liveCodeCSS', cssEditor.getValue());
+                localStorage.setItem('liveCodeJS', jsEditor.getValue());
+            }
         });
 
         // Load from localStorage
         window.addEventListener('load', () => {
-            const savedHTML = localStorage.getItem('liveCodeHTML');
-            const savedCSS = localStorage.getItem('liveCodeCSS');
-            const savedJS = localStorage.getItem('liveCodeJS');
+            setTimeout(() => {
+                const savedHTML = localStorage.getItem('liveCodeHTML');
+                const savedCSS = localStorage.getItem('liveCodeCSS');
+                const savedJS = localStorage.getItem('liveCodeJS');
 
-            if (savedHTML || savedCSS || savedJS) {
-                setTimeout(() => {
+                if ((savedHTML || savedCSS || savedJS) && htmlEditor && cssEditor && jsEditor) {
                     if (savedHTML) htmlEditor.setValue(savedHTML);
                     if (savedCSS) cssEditor.setValue(savedCSS);
                     if (savedJS) jsEditor.setValue(savedJS);
                     runCode();
-                }, 1000);
-            }
+                }
+            }, 1000);
         });
     </script>
 </body>
